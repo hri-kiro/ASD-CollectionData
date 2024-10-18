@@ -89,10 +89,6 @@ class ClientManagerThread(threading.Thread):
                 try:
                     received_msg_parts = received_msg.split('>')
 
-                    # Ensure that the received message has exactly two parts (message and click_time)
-                    if len(received_msg_parts) != 2:
-                        raise ValueError("Received data in unexpected format")
-
                     message = received_msg_parts[0].strip()  # Strip any extra spaces from the message
                     click_time = received_msg_parts[1].strip()  # Strip any extra spaces from the click time
 
