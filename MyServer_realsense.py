@@ -20,10 +20,12 @@ class RealSenseRecorder:
         self.is_recording = False
         self.out = None
 
-    def start_recording(self, click_time):
-        # Format the click_time into a valid filename
+    def start_recording(self, click_time, message):
+        # Format the filename to include click time and message
         filename_time = datetime.strptime(click_time, "%Y-%m-%d %H:%M:%S").strftime("%Y%m%d_%H%M%S")
-        filename = f"realsense_recording_{filename_time}.avi"
+        //파일 이름 변경
+        filename = f"{filename_time}_{message}.avi"
+        print(f"Starting recording with filename: {filename}")
 
         # Define video codec and output file
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -36,6 +38,7 @@ class RealSenseRecorder:
 
     def stop_recording(self):
         if self.is_recording:
+            print("Stopping recording...")
             self.is_recording = False
             self.pipeline.stop()
             if self.out:
@@ -67,9 +70,10 @@ class RealSenseRecorder:
 
 # Client management thread class
 class ClientManagerThread(threading.Thread):
-    def __init__(self, client_socket, recorder):
+    def __init__(self, client_socket, robot_socket, recorder):
         threading.Thread.__init__(self)
         self.client_socket = client_socket
+        self.robot_socket = robot_socket
         self.recorder = recorder
 
     def run(self):
@@ -89,10 +93,16 @@ class ClientManagerThread(threading.Thread):
                 try:
                     received_msg_parts = received_msg.split('>')
 
-                    message = received_msg_parts[0].strip()  # Strip any extra spaces from the message
-                    click_time = received_msg_parts[1].strip()  # Strip any extra spaces from the click time
+                    message = received_msg_parts[0].strip()  # Extract the message part
+                    click_time = received_msg_parts[1].strip()  # Extract the click time part
 
                     print(f"Message: {message}, Click Time: {click_time}")
+
+                    # Forward only the message to the robot
+                    if self.robot_socket:
+                        print("Forwarding message to robot...")
+                        self.robot_socket.sendall((message + '\n').encode('utf-8'))  # Send only the message
+                        print(f"Forwarded to robot: {message}")
                     
                     # Stop recording if "Wrong Button" or "Correct Button" is received
                     if message == "Wrong Button" or message == "Correct Button":
@@ -102,10 +112,10 @@ class ClientManagerThread(threading.Thread):
                     # Start recording for any other message
                     else:
                         print("Starting RealSense recording...")
-                        self.recorder.start_recording(click_time)  # Pass click time for the filename
+                        self.recorder.start_recording(click_time, message)  # Pass click time and message for the filename
                         # Start a thread to record frames in the background
                         threading.Thread(target=self.recorder.record).start()
-                        
+
                 except ValueError:
                     print("Received data in unexpected format")
 
@@ -116,6 +126,7 @@ class ClientManagerThread(threading.Thread):
 def main():
     host = '0.0.0.0'
     port = 8888
+
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((host, port))
     server_socket.listen(5)
@@ -125,12 +136,17 @@ def main():
     recorder = RealSenseRecorder()
 
     try:
-        while True:
-            client_socket, client_address = server_socket.accept()
-            print(f"Client connected: Host: {client_address[0]}, Port: {client_address[1]}")
+        print("Waiting for robot to connect...")
+        robot_socket, robot_address = server_socket.accept()
+        print(f"Robot connected: {robot_address[0]}, Port: {robot_address[1]}")
 
-            # Create a new thread for handling the client
-            client_thread = ClientManagerThread(client_socket, recorder)
+        while True:
+            print("Waiting for client to connect...")
+            client_socket, client_address = server_socket.accept()
+            print(f"Client connected: {client_address[0]}, Port: {client_address[1]}")
+
+            # Create a new thread for handling the client and forwarding messages to the robot
+            client_thread = ClientManagerThread(client_socket, robot_socket, recorder)
             client_thread.start()
 
     except Exception as e:
