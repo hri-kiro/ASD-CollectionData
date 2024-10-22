@@ -19,21 +19,27 @@ class RealSenseRecorder:
 
         self.is_recording = False
         self.out = None
+        self.current_filename = None  # 현재 녹화 중인 파일 이름을 저장할 변수
 
     def start_recording(self, click_time, message):
         # Format the filename to include click time and message
         filename_time = datetime.strptime(click_time, "%Y-%m-%d %H:%M:%S").strftime("%Y%m%d_%H%M%S")
-        filename = f"{filename_time}_{message}.avi"
-        print(f"Starting recording with filename: {filename}")
+        new_filename = f"{filename_time}_{message}.avi"
+        if self.current_filename == new_filename:
+            print(f"Skipping recording because filename {new_filename} is already being used.")
+            return
+        
+        print(f"Starting recording with filename: {new_filename}")
 
         # Define video codec and output file
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        self.out = cv2.VideoWriter(filename, fourcc, 30.0, (640, 480))
+        self.out = cv2.VideoWriter(new_filename, fourcc, 30.0, (640, 480))
 
         # Start streaming
         self.pipeline.start(self.config)
         self.is_recording = True
-        print(f"Recording started. Saving to {filename}")
+        self.current_filename = new_filename  # 현재 파일 이름 저장
+        print(f"Recording started. Saving to {new_filename}")
 
     def stop_recording(self):
         if self.is_recording:
@@ -42,6 +48,7 @@ class RealSenseRecorder:
             self.pipeline.stop()
             if self.out:
                 self.out.release()
+            
             print("Recording stopped and saved.")
 
     def record(self):
