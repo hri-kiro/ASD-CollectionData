@@ -23,7 +23,6 @@ class RealSenseRecorder:
     def start_recording(self, click_time, message):
         # Format the filename to include click time and message
         filename_time = datetime.strptime(click_time, "%Y-%m-%d %H:%M:%S").strftime("%Y%m%d_%H%M%S")
-        //파일 이름 변경
         filename = f"{filename_time}_{message}.avi"
         print(f"Starting recording with filename: {filename}")
 
@@ -67,6 +66,8 @@ class RealSenseRecorder:
 
         except Exception as e:
             print(f"Error during recording: {e}")
+            
+    
 
 # Client management thread class
 class ClientManagerThread(threading.Thread):
@@ -75,7 +76,7 @@ class ClientManagerThread(threading.Thread):
         self.client_socket = client_socket
         self.robot_socket = robot_socket
         self.recorder = recorder
-
+        
     def run(self):
         try:
             client_address = self.client_socket.getpeername()
@@ -89,6 +90,11 @@ class ClientManagerThread(threading.Thread):
                 # Decode the received data to a string
                 received_msg = data.decode('utf-8')
                 print(f"Received from client: {received_msg}")
+                
+                # 로봇 소켓이 끊어진 경우 재연결 시도
+                if not self.robot_socket:
+                    print("Attempting to reconnect to robot...")
+                    self.robot_socket = self.connect_to_robot()
 
                 try:
                     received_msg_parts = received_msg.split('>')
@@ -99,10 +105,19 @@ class ClientManagerThread(threading.Thread):
                     print(f"Message: {message}, Click Time: {click_time}")
 
                     # Forward only the message to the robot
-                    if self.robot_socket:
+                    try:
                         print("Forwarding message to robot...")
                         self.robot_socket.sendall((message + '\n').encode('utf-8'))  # Send only the message
                         print(f"Forwarded to robot: {message}")
+                        
+                    except socket.error as e:
+                        print(f"Error sending message to robot: {e}")
+                        if self.robot_socket:
+                            self.robot_socket.close()
+                        self.robot_socket = None  # 소켓 재연결 필요
+                        print("Attempting to reconnect after socket error...")
+                        self.robot_socket = self.connect_to_robot()
+                        
                     
                     # Stop recording if "Wrong Button" or "Correct Button" is received
                     if message == "Wrong Button" or message == "Correct Button":
@@ -118,9 +133,32 @@ class ClientManagerThread(threading.Thread):
 
                 except ValueError:
                     print("Received data in unexpected format")
+                    
+                except socket.error as e:
+                    print(f"Error sending message to robot: {e}")
+                    self.robot_socket.close()
+                    self.robot_socket = None  # 재연결 필요
+                    
+                except Exception as client_e:
+                    print(f"Error handling client: {client_e}")
+                    break
 
         finally:
             self.client_socket.close()
+            
+            
+    def connect_to_robot(server_socket):
+        while True:
+            try:
+                print("Waiting for robot to connect...")
+                robot_socket, robot_address = server_socket.accept()
+                print(f"Robot connected: {robot_address[0]}, Port: {robot_address[1]}")
+                # TCP Keep-Alive 설정 추가
+                robot_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                return robot_socket
+            except Exception as e:
+                print(f"Error connecting to robot: {e}")
+                time.sleep(5)  # 재연결 시도 간격
 
 # Main server setup
 def main():
@@ -152,6 +190,7 @@ def main():
     except Exception as e:
         print(f"Error: {e}")
     finally:
+        print("         socket close!!!!")
         server_socket.close()
 
 if __name__ == "__main__":
