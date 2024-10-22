@@ -71,96 +71,76 @@ class RealSenseRecorder:
 
 # Client management thread class
 class ClientManagerThread(threading.Thread):
-    def __init__(self, client_socket, robot_socket, recorder):
+    def __init__(self, client_socket, robot_socket, recorder, server_socket):
         threading.Thread.__init__(self)
         self.client_socket = client_socket
         self.robot_socket = robot_socket
         self.recorder = recorder
-        
+        self.server_socket = server_socket  # 서버 소켓을 받아와서 재연결 시 서버로 전달
+
     def run(self):
         try:
             client_address = self.client_socket.getpeername()
             print(f"Client connected. Host: {client_address[0]}, Port: {client_address[1]}")
 
             while True:
-                # Continuously handle communication with the client (e.g., receive messages)
+                # 클라이언트로부터 메시지 수신
                 data = self.client_socket.recv(1024)
                 if not data:
                     break
-                # Decode the received data to a string
+                # 수신된 데이터를 디코딩
                 received_msg = data.decode('utf-8')
                 print(f"Received from client: {received_msg}")
-                
-                # 로봇 소켓이 끊어진 경우 재연결 시도
-                if not self.robot_socket:
-                    print("Attempting to reconnect to robot...")
-                    self.robot_socket = self.connect_to_robot()
 
                 try:
                     received_msg_parts = received_msg.split('>')
-
-                    message = received_msg_parts[0].strip()  # Extract the message part
-                    click_time = received_msg_parts[1].strip()  # Extract the click time part
-
+                    message = received_msg_parts[0].strip()  # 메시지 부분 추출
+                    click_time = received_msg_parts[1].strip()  # 클릭 시간 추출
                     print(f"Message: {message}, Click Time: {click_time}")
 
-                    # Forward only the message to the robot
+                    # 로봇에게 메시지 전송
                     try:
-                        print("Forwarding message to robot...")
-                        self.robot_socket.sendall((message + '\n').encode('utf-8'))  # Send only the message
-                        print(f"Forwarded to robot: {message}")
-                        
+                        if self.robot_socket:
+                            self.robot_socket.sendall((message + '\n').encode('utf-8'))
+                            print(f"Forwarded to robot: {message}")
+                        else:
+                            print("Robot is not connected.")
                     except socket.error as e:
                         print(f"Error sending message to robot: {e}")
-                        if self.robot_socket:
-                            self.robot_socket.close()
-                        self.robot_socket = None  # 소켓 재연결 필요
-                        print("Attempting to reconnect after socket error...")
-                        self.robot_socket = self.connect_to_robot()
-                        
-                    
-                    # Stop recording if "Wrong Button" or "Correct Button" is received
-                    if message == "Wrong Button" or message == "Correct Button":
-                        print(f"Stopping RealSense recording with message: {message}")
+                        break  # 로봇과 연결이 끊어졌다면 스레드를 종료하고 서버에서 재연결 시도
+
+                    # 녹화 시작
+                    if message != "Correct Button" and message != "Wrong Button":
+                        print(f"Starting RealSense recording for: {message}")
+                        self.recorder.start_recording(click_time, message)
+                    else:
+                        print(f"Stopping RealSense recording for: {message}")
                         self.recorder.stop_recording()
 
-                    # Start recording for any other message
-                    else:
-                        print("Starting RealSense recording...")
-                        self.recorder.start_recording(click_time, message)  # Pass click time and message for the filename
-                        # Start a thread to record frames in the background
-                        threading.Thread(target=self.recorder.record).start()
-
-                except ValueError:
-                    print("Received data in unexpected format")
-                    
-                except socket.error as e:
-                    print(f"Error sending message to robot: {e}")
-                    self.robot_socket.close()
-                    self.robot_socket = None  # 재연결 필요
-                    
-                except Exception as client_e:
-                    print(f"Error handling client: {client_e}")
+                except Exception as e:
+                    print(f"Error while handling message: {e}")
                     break
-
         finally:
             self.client_socket.close()
             
             
-    def connect_to_robot(server_socket):
-        while True:
-            try:
-                print("Waiting for robot to connect...")
-                robot_socket, robot_address = server_socket.accept()
-                print(f"Robot connected: {robot_address[0]}, Port: {robot_address[1]}")
-                # TCP Keep-Alive 설정 추가
-                robot_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-                return robot_socket
-            except Exception as e:
-                print(f"Error connecting to robot: {e}")
-                time.sleep(5)  # 재연결 시도 간격
+# 로봇 연결 처리 함수
+def connect_to_robot(server_socket):
+    """로봇 연결을 기다리고, 연결되면 소켓을 반환하는 함수"""
+    while True:
+        try:
+            print("Waiting for robot to connect...")
+            robot_socket, robot_address = server_socket.accept()  # 서버 소켓을 통해 로봇 연결 수락
+            print(f"Robot connected: {robot_address[0]}, Port: {robot_address[1]}")
 
-# Main server setup
+            # TCP Keep-Alive 설정 추가
+            robot_socket.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+            return robot_socket
+        except Exception as e:
+            print(f"Error connecting to robot: {e}")
+            time.sleep(5)  # 재연결 시도 간격
+
+
 def main():
     host = '0.0.0.0'
     port = 8888
@@ -170,27 +150,33 @@ def main():
     server_socket.listen(5)
     print(f"Server listening on {host}:{port}")
 
-    # Initialize the RealSense recorder
+    # RealSense Recorder 초기화
     recorder = RealSenseRecorder()
 
-    try:
-        print("Waiting for robot to connect...")
-        robot_socket, robot_address = server_socket.accept()
-        print(f"Robot connected: {robot_address[0]}, Port: {robot_address[1]}")
+    robot_socket = None
 
+    try:
         while True:
+            # 로봇 연결이 없다면 재연결 시도
+            if not robot_socket:
+                robot_socket = connect_to_robot(server_socket)  # 로봇 연결 대기
+
             print("Waiting for client to connect...")
-            client_socket, client_address = server_socket.accept()
+            client_socket, client_address = server_socket.accept()  # 클라이언트 연결 대기
             print(f"Client connected: {client_address[0]}, Port: {client_address[1]}")
 
-            # Create a new thread for handling the client and forwarding messages to the robot
-            client_thread = ClientManagerThread(client_socket, robot_socket, recorder)
+            # 클라이언트 스레드 생성 및 처리
+            client_thread = ClientManagerThread(client_socket, robot_socket, recorder, server_socket)
             client_thread.start()
+
+            # 스레드에서 로봇 소켓이 끊어진 경우, 새로운 연결을 기다림
+            client_thread.join()  # 클라이언트 스레드가 끝날 때까지 대기
+            robot_socket = None  # 로봇 소켓이 끊어졌다고 가정하고 재연결 대기
+            print("Robot socket disconnected, waiting for reconnection...")
 
     except Exception as e:
         print(f"Error: {e}")
     finally:
-        print("         socket close!!!!")
         server_socket.close()
 
 if __name__ == "__main__":
