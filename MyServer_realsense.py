@@ -40,16 +40,28 @@ class RealSenseRecorder:
         self.is_recording = True
         self.current_filename = new_filename  # 현재 파일 이름 저장
         print(f"Recording started. Saving to {new_filename}")
+        
+        # Start a new thread for continuous recording
+        record_thread = threading.Thread(target=self.record)
+        record_thread.start()
 
     def stop_recording(self):
         if self.is_recording:
-            print("Stopping recording...")
+            print(f"Stopping recording for file: {self.current_filename}")
             self.is_recording = False
-            self.pipeline.stop()
-            if self.out:
-                self.out.release()
-            
-            print("Recording stopped and saved.")
+            try:
+                if self.out:
+                    self.out.release()  # 비디오 파일 종료
+            except Exception as e:
+                print(f"Error closing video file: {e}")
+            finally:
+                try:
+                    self.pipeline.stop()  # 파이프라인 중지
+                    print("RealSense pipeline stopped.")
+                except Exception as e:
+                    print(f"Error stopping pipeline: {e}")
+                self.current_filename = None
+                print("Recording stopped and saved.")
 
     def record(self):
         try:
