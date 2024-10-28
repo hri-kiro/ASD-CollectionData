@@ -14,7 +14,7 @@ config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 pipeline.start(config)
 
 # Define video codec and output file
-fourcc = cv2.VideoWriter_fourcc(*'XVID')  # Choose a codec
+fourcc = cv2.VideoWriter_fourcc(*'XVID')  # 코덱 선택
 out = cv2.VideoWriter('realsense_output.avi', fourcc, 30.0, (640, 480)) # 파일 형식 지정
 
 try:
