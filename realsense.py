@@ -32,7 +32,7 @@ try:
         depth_image = np.asanyarray(depth_frame.get_data())
         color_image = np.asanyarray(color_frame.get_data())
 
-        # Show the image
+        # 이미지 보기
         cv2.imshow('Realsense Color Stream', color_image)
         # Write the frame to the video output file
         out.write(color_image)
