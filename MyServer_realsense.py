@@ -130,7 +130,7 @@ class ClientManagerThread(threading.Thread):
                         break  # 로봇과 연결이 끊어졌다면 스레드를 종료하고 서버에서 재연결 시도
 
                     # 녹화 시작
-                    if message != "Correct Button" and message != "Wrong Button":
+                    if message != "Correct Button" and message != "Wrong Button": # Activity가 클릭되면 녹화 시작
                         print(f"Starting RealSense recording for: {message}")
                         self.recorder.start_recording(click_time, message)
                     else:
