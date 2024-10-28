@@ -55,6 +55,14 @@ class RealSenseRecorder:
                     self.out.release()  # 비디오 파일 종료
             except Exception as e:
                 print(f"Error closing video file: {e}")
+            finally:
+                try:
+                    self.pipeline.stop()  # 파이프라인 중지
+                    print("RealSense pipeline stopped.")
+                except Exception as e:
+                    print(f"Error stopping pipeline: {e}")
+                self.current_filename = None
+                print("Recording stopped and saved.")
             
 
     def record(self):
