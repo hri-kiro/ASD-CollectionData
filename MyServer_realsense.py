@@ -24,7 +24,7 @@ class RealSenseRecorder:
     def start_recording(self, click_time, message):
         # 클릭시간과 메시지를 포함한 파일이름 형식
         filename_time = datetime.strptime(click_time, "%Y-%m-%d %H:%M:%S").strftime("%Y%m%d_%H%M%S")
-        new_filename = f"{filename_time}_{message}.avi"
+        new_filename = f"{filename_time}_{message}.mp4"
         # 중복 레코딩 방지
         if self.current_filename == new_filename:
             print(f"Skipping recording because filename {new_filename} is already being used.")
