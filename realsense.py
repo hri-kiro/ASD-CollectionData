@@ -37,7 +37,7 @@ try:
         # Write the frame to the video output file
         out.write(color_image)
 
-        # Check for 'q' key to quit
+        # 'q'키 입력시 레코딩 멈춤
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
