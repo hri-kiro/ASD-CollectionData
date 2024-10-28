@@ -33,7 +33,7 @@ class RealSenseRecorder:
         print(f"Starting recording with filename: {new_filename}")
 
         # Define video codec and output file
-        fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        fourcc = cv2.VideoWriter_fourcc(*'XVID') # MPEG-2, H.264, H.265 코덱 지정
         self.out = cv2.VideoWriter(new_filename, fourcc, 30.0, (640, 480))
 
         # Start streaming
