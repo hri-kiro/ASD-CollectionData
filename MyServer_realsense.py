@@ -108,7 +108,7 @@ class ClientManagerThread(threading.Thread):
                 data = self.client_socket.recv(1024)
                 if not data:
                     break
-                # 수신된 데이터를 디코딩
+                # 수신된 데이터(msg)를 디코딩
                 received_msg = data.decode('utf-8')
                 print(f"Received from client: {received_msg}")
 
