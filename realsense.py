@@ -15,7 +15,7 @@ pipeline.start(config)
 
 # Define video codec and output file
 fourcc = cv2.VideoWriter_fourcc(*'XVID')  # Choose a codec
-out = cv2.VideoWriter('realsense_output.avi', fourcc, 30.0, (640, 480))
+out = cv2.VideoWriter('realsense_output.avi', fourcc, 30.0, (640, 480)) # 파일 형식 지정
 
 try:
     print("Press 'q' to quit.")
