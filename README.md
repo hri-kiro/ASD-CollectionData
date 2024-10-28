@@ -5,10 +5,10 @@ Multi-camera Autism Spectrum Screening Data Collection Software for Infants and 
 
 
 # 개요
-다중 depth 카메라를 활용하여 영유아 ASD 선별 검사장면을 모니터링 및 녹화 기능을 가진 소프트웨어
-- IR 패턴 간섭 최소화를 위한 depth 카메라 동기화 기능
-  
-- 연구번호, 피검사자 식별정보, 검사타입 등 기록 기능
+Software with monitoring and recording function for infant and toddler ASD screening test scenes using multiple depth cameras
+- Depth camera synchronization function to minimize IR pattern interference
+
+- Recording function such as a subject number, test subject identification information, and test type
 
 # Acknowledgement
 This work was supported by the Institute of Information & communications Technology Planning & evaluation (IITP) grant funded by the Korea government (MSIT) (No. 2019-0-00330, Development of AI Technology for Early Screening of Child/Child Autism Spectrum Disorders based on Cognition of the Psychological Behavior and Response).
