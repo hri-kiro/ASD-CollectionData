@@ -134,7 +134,7 @@ class ClientManagerThread(threading.Thread):
                         print(f"Starting RealSense recording for: {message}")
                         self.recorder.start_recording(click_time, message)
                     else:
-                        print(f"Stopping RealSense recording for: {message}")
+                        print(f"Stopping RealSense recording for: {message}") # 판단 버튼이 클릭되면 녹화 중지
                         self.recorder.stop_recording()
 
                 except Exception as e:
